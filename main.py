@@ -49,9 +49,6 @@ class StatusUp(BaseModel):
 
 app = FastAPI()
 
-
-
-
 @app.get("/")
 def basic():
     return {"message": "Hello, World!"}
