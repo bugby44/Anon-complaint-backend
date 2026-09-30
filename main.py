@@ -1,9 +1,14 @@
 import secrets
-
+import os
+from dotenv import load_dotenv
 from pydantic import BaseModel,HttpUrl,field_validator
-from fastapi import FastAPI,HTTPException
+from fastapi import FastAPI,HTTPException,Header,Depends
 from sqlalchemy import String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+
+load_dotenv()
+
+MOD_PASSWORD = os.environ["MOD_PASSWORD"]
 
 engine = create_engine(
     "sqlite:///./complaints.db",
@@ -47,6 +52,11 @@ class ComplaintIn(BaseModel):
 class StatusUp(BaseModel):
     status: str
 
+
+def require_mod(x_mod_password: str = Header(...)):
+    if not secrets.compare_digest(x_mod_password, MOD_PASSWORD):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
 app = FastAPI()
 
 @app.get("/")
@@ -76,4 +86,16 @@ def get_status(complaint_id:str):
 
         return {"category":complaint.category,"status":complaint.status}
 
+
+@app.get("/mod/complaints",dependencies=[Depends(require_mod)])
+def get_data(category:str | None=None, status:str | None=None):
+    with SessionLocal() as session:
+        query=session.query(Complaint)
+        if category:
+            query=query.filter(Complaint.category==category)
+        if status:
+            query=query.filter(Complaint.status==status)
+
+        results=query.all()
+        return results
 
