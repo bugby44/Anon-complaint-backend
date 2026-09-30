@@ -1,8 +1,9 @@
 import secrets
 import os
+from typing import Literal
 from dotenv import load_dotenv
 from pydantic import BaseModel,HttpUrl,field_validator
-from fastapi import FastAPI,HTTPException,Header,Depends
+from fastapi import FastAPI,HTTPException,Header,Depends,Path
 from sqlalchemy import String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
@@ -27,20 +28,18 @@ class Complaint(Base):
     __tablename__ = "complaints"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    hex_code: Mapped[str] = mapped_column(
-        String(16), unique=True, index=True, default=lambda: secrets.token_hex(8)
-    )
-    category: Mapped[str] = mapped_column(String(50))
+    hex_code: Mapped[str] = mapped_column(String(16), unique=True, index=True, default=lambda: secrets.token_hex(8))
+    category: Mapped[str] = mapped_column(String(15))
     description: Mapped[str] = mapped_column(Text)
     url: Mapped[str | None] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(String(20), default="under review")
+    status: Mapped[str] = mapped_column(String(20), default="SUBMITTED")
 
 
 Base.metadata.create_all(engine)
 
 
 class ComplaintIn(BaseModel):
-    category: str
+    category: Literal["Security","Harassment","Corruption","Technical","Other"]
     description: str
     url: HttpUrl | None = None
 
@@ -50,7 +49,7 @@ class ComplaintIn(BaseModel):
         return v or None
 
 class StatusUp(BaseModel):
-    status: str
+    status: Literal["SUBMITTED", "UNDER REVIEW", "RESOLVED"]
 
 
 def require_mod(x_mod_password: str = Header(...)):
@@ -59,11 +58,8 @@ def require_mod(x_mod_password: str = Header(...)):
 
 app = FastAPI()
 
-@app.get("/")
-def basic():
-    return {"message": "Hello, World!"}
 
-@app.post("/complaints")
+@app.post("/complaints",tags=["Public"])
 def create_complaint(data:ComplaintIn):
     with SessionLocal() as session:
         complaint=Complaint(
@@ -77,8 +73,8 @@ def create_complaint(data:ComplaintIn):
         return{"hex_code":complaint.hex_code,"status":complaint.status}
 
 
-@app.get("/complaints/{complaint_id}")
-def get_status(complaint_id:str):
+@app.get("/complaints/{complaint_id}",tags=["Public"])
+def get_status(complaint_id:str=Path(...,description="Hex code of the complaint",examples="e19e9a09c57f94d1")):
     with SessionLocal() as session:
         complaint=session.query(Complaint).filter(Complaint.hex_code==complaint_id).first()
         if not complaint:
@@ -87,7 +83,7 @@ def get_status(complaint_id:str):
         return {"category":complaint.category,"status":complaint.status}
 
 
-@app.get("/mod/complaints",dependencies=[Depends(require_mod)])
+@app.get("/mod/complaints",dependencies=[Depends(require_mod)],tags=["Moderator"])
 def get_data(category:str | None=None, status:str | None=None):
     with SessionLocal() as session:
         query=session.query(Complaint)
@@ -99,3 +95,13 @@ def get_data(category:str | None=None, status:str | None=None):
         results=query.all()
         return results
 
+@app.patch("/mod/complaints/{complaint_id}",dependencies=[Depends(require_mod)],tags=["Moderator"])
+def update_status(complaint_id:str, status:StatusUp):
+    with SessionLocal() as session:
+        complaint = session.query(Complaint).filter(Complaint.hex_code == complaint_id).first()
+        if not complaint:
+            raise HTTPException(status_code=404, detail="Complaint not found")
+
+        complaint.status = status.status
+        session.commit()
+        return {"hex_code": complaint.hex_code, "status": complaint.status}
