@@ -6,6 +6,7 @@ from pydantic import BaseModel,HttpUrl,field_validator
 from fastapi import FastAPI,HTTPException,Header,Depends,Path
 from sqlalchemy import String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from fastapi.responses import RedirectResponse
 
 load_dotenv()
 
@@ -62,7 +63,9 @@ def require_mod(x_mod_password: str = Header(...)):
 
 app = FastAPI()
 
-
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
 @app.post("/complaints",tags=["Public"])
 def create_complaint(data:ComplaintIn):
     with SessionLocal() as session:
