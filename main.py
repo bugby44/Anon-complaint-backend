@@ -68,6 +68,12 @@ def root():
     return RedirectResponse(url="/docs")
 @app.post("/complaints",tags=["Public"])
 def create_complaint(data:ComplaintIn):
+    """
+       Submit an anonymous complaint.
+
+       Category must be one of: Security, Harassment, Corruption, Technical, Other.
+       Returns a hex code, save it, it's the only way to check your status later.
+       """
     with SessionLocal() as session:
         complaint=Complaint(
             category = data.category,
@@ -82,6 +88,9 @@ def create_complaint(data:ComplaintIn):
 
 @app.get("/complaints/{complaint_id}",tags=["Public"])
 def get_status(complaint_id:str=Path(...,description="Hex code of the complaint",examples="e19e9a09c57f94d1")):
+    """
+    Enter hex code of the complaint to get its status.
+    """
     with SessionLocal() as session:
         complaint=session.query(Complaint).filter(Complaint.hex_code==complaint_id).first()
         if not complaint:
@@ -92,6 +101,12 @@ def get_status(complaint_id:str=Path(...,description="Hex code of the complaint"
 
 @app.get("/mod/complaints",dependencies=[Depends(require_mod)],tags=["Moderator"])
 def get_data(category:str | None=None, status:str | None=None):
+    """
+    Enter the mod password to get access to all complaints.
+
+    Complaints can be filtered by category or status.
+
+    """
     with SessionLocal() as session:
         query=session.query(Complaint)
         if category:
@@ -104,6 +119,11 @@ def get_data(category:str | None=None, status:str | None=None):
 
 @app.patch("/mod/complaints/{complaint_id}",dependencies=[Depends(require_mod)],tags=["Moderator"])
 def update_status(complaint_id:str, status:StatusUp):
+    """
+    Enter the mod password to update the status of a complaint.
+
+    Status can be updated to one of: SUBMITTED, UNDER REVIEW, RESOLVED.
+    """
     with SessionLocal() as session:
         complaint = session.query(Complaint).filter(Complaint.hex_code == complaint_id).first()
         if not complaint:
