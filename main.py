@@ -11,11 +11,15 @@ load_dotenv()
 
 MOD_PASSWORD = os.environ["MOD_PASSWORD"]
 
-engine = create_engine(
-    "sqlite:///./complaints.db",
-    connect_args={"check_same_thread": False},
-    echo=False,
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./complaints.db")
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args, echo=False)
+
 
 SessionLocal = sessionmaker(bind=engine)
 
