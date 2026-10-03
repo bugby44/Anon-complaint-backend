@@ -39,6 +39,10 @@ The moderator password goes in an X-Mod-Password header. In Swagger there is a f
 
 Categories are Security, Harassment, Corruption, Technical and Other. Statuses are SUBMITTED, UNDER REVIEW and RESOLVED. Anything else gets rejected with a 422 error code.
 
+Pydantic checks every request before it reaches the database. The category and status have to be one of the allowed values, the proof link has to be a valid http or https URL, and the description cannot be empty. If anything is wrong the request gets rejected with a 422 and a message naming the field.
+
+The submit form has no status or code field at all, so a complainant cannot set their own status or choose their own code. The moderator's update only has a status field, so they cannot edit the text of a complaint.
+
 ## Submitting a complaint
 Input:
 <!-- SCREENSHOT 2: POST /complaints request body -->
