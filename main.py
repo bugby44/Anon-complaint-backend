@@ -68,7 +68,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://rdchampion.me/smth"
+        "https://rdchampion.me"
         # add the deployed frontend URL here, scheme + host only, no trailing slash
     ],
     allow_methods=["*"],
