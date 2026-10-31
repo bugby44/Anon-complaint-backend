@@ -7,6 +7,7 @@ from fastapi import FastAPI,HTTPException,Header,Depends,Path
 from sqlalchemy import String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
@@ -62,6 +63,16 @@ def require_mod(x_mod_password: str = Header(...)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        # add the deployed frontend URL here, scheme + host only, no trailing slash
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/", include_in_schema=False)
 def root():
