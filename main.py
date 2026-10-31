@@ -54,6 +54,13 @@ class ComplaintIn(BaseModel):
     def blank_to_none(cls, v):
         return v or None
 
+NEXT_STATUS = {
+    "SUBMITTED": "UNDER REVIEW",
+    "UNDER REVIEW": "RESOLVED",
+    "RESOLVED": None,
+}
+
+
 class StatusUp(BaseModel):
     status: Literal["SUBMITTED", "UNDER REVIEW", "RESOLVED"]
 
@@ -134,12 +141,19 @@ def update_status(complaint_id:str, status:StatusUp):
     """
     Enter the mod password to update the status of a complaint.
 
-    Status can be updated to one of: SUBMITTED, UNDER REVIEW, RESOLVED.
+    Status moves in order: SUBMITTED to UNDER REVIEW to RESOLVED.
+    Skipping a step or going backwards is rejected with a 409.
     """
     with SessionLocal() as session:
         complaint = session.query(Complaint).filter(Complaint.hex_code == complaint_id).first()
         if not complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
+
+        if status.status != NEXT_STATUS.get(complaint.status):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot move from {complaint.status} to {status.status}",
+            )
 
         complaint.status = status.status
         session.commit()
