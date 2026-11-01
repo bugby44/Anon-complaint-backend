@@ -187,6 +187,24 @@ def get_status(complaint_id:str=Path(...,description="Hex code of the complaint"
         return {"category":complaint.category,"status":complaint.status}
 
 
+@app.get("/mod",dependencies=[Depends(require_mod)],tags=["Moderator"])
+def get_data(category:str | None=None, status:str | None=None):
+    """
+    Enter the mod password to get access to all complaints.
+
+    Complaints can be filtered by category or status.
+
+    """
+    with SessionLocal() as session:
+        query=session.query(Complaint)
+        if category:
+            query=query.filter(Complaint.category==category)
+        if status:
+            query=query.filter(Complaint.status==status)
+
+        results=query.all()
+        return results
+
 @app.get("/mod/complaints",dependencies=[Depends(require_mod)],tags=["Moderator"])
 def get_data(category:str | None=None, status:str | None=None):
     """
