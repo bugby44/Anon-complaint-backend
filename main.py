@@ -87,19 +87,19 @@ def build_report(complaints, category, status):
     pdf = FPDF()
     pdf.add_page()
 
-    pdf.set_font("Arial", "B", 16)
+    pdf.set_font("Helvetica", "B", 16)
     pdf.cell(0, 10, "Complaints Report", new_x="LMARGIN", new_y="NEXT")
 
-    pdf.set_font("Arial", size=10)
+    pdf.set_font("Helvetica", size=10)
     pdf.cell(0, 6, f"{len(complaints)} complaints ({subtitle})", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(6)
 
     for c in complaints:
-        pdf.set_font("Arial", "B", 10)
-        pdf.multi_cell(0, 6, f"{c.hex_code}   {c.category}   {c.status}")
-        pdf.set_font("Arial", size=10)
-        pdf.multi_cell(0, 6, safe(c.description))
-        pdf.multi_cell(0, 6, safe(f"proof: {c.url or 'none'}"))
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.multi_cell(0, 6, f"{c.hex_code}   {c.category}   {c.status}", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", size=10)
+        pdf.multi_cell(0, 6, safe(c.description), new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 6, safe(f"proof: {c.url or 'none'}"), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(4)
 
     return bytes(pdf.output())
