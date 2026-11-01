@@ -85,21 +85,50 @@ def build_report(complaints, category, status):
     subtitle = ", ".join(filters) if filters else "all complaints"
 
     pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_font("Helvetica", "B", 18)
     pdf.cell(0, 10, "Complaints Report", new_x="LMARGIN", new_y="NEXT")
 
-    pdf.set_font("Helvetica", size=10)
-    pdf.cell(0, 6, f"{len(complaints)} complaints ({subtitle})", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(110)
+    pdf.cell(0, 6, f"{len(complaints)} complaints  -  {subtitle}", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0)
+
+    pdf.ln(2)
+    y = pdf.get_y()
+    pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
     pdf.ln(6)
 
-    for c in complaints:
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.multi_cell(0, 6, f"{c.hex_code}   {c.category}   {c.status}", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", size=10)
-        pdf.multi_cell(0, 6, safe(c.description), new_x="LMARGIN", new_y="NEXT")
-        pdf.multi_cell(0, 6, safe(f"proof: {c.url or 'none'}"), new_x="LMARGIN", new_y="NEXT")
+    if not complaints:
+        pdf.set_font("Helvetica", "I", 11)
+        pdf.cell(0, 8, "No complaints match this filter.", new_x="LMARGIN", new_y="NEXT")
+        return bytes(pdf.output())
+
+    for n, c in enumerate(complaints, start=1):
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.multi_cell(0, 6, f"{n}.  {c.hex_code}", new_x="LMARGIN", new_y="NEXT")
+
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(90)
+        pdf.multi_cell(0, 5, f"Category: {c.category}      Status: {c.status}", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0)
+        pdf.ln(1)
+
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 5.5, safe(c.description), new_x="LMARGIN", new_y="NEXT")
+
+        if c.url:
+            pdf.ln(1)
+            pdf.set_font("Helvetica", "I", 9)
+            pdf.multi_cell(0, 5, safe(f"Proof: {c.url}"), new_x="LMARGIN", new_y="NEXT")
+
+        pdf.ln(3)
+        y = pdf.get_y()
+        pdf.set_draw_color(200)
+        pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
+        pdf.set_draw_color(0)
         pdf.ln(4)
 
     return bytes(pdf.output())
