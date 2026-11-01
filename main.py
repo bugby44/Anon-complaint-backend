@@ -1,10 +1,11 @@
 import secrets
 import os
+from fpdf import FPDF
 from typing import Literal
 from dotenv import load_dotenv
 from pydantic import BaseModel,HttpUrl,field_validator
-from fastapi import FastAPI,HTTPException,Header,Depends,Path
-from sqlalchemy import String, Text, create_engine
+from fastapi import FastAPI,HTTPException,Header,Depends,Path,Response
+from sqlalchemy import String, Text, create_engine,LargeBinary
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +41,12 @@ class Complaint(Base):
     url: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="SUBMITTED")
 
+class Report(Base):
+    __tablename__ = "reports"
+
+    id:Mapped[int] = mapped_column(primary_key=True)
+    pdf:Mapped[bytes]=mapped_column(LargeBinary,deferred=True)
+
 
 Base.metadata.create_all(engine)
 
@@ -65,6 +72,39 @@ class StatusUp(BaseModel):
     status: Literal["SUBMITTED", "UNDER REVIEW", "RESOLVED"]
 
 
+def safe(text):
+    return str(text).encode("latin-1", "replace").decode("latin-1")
+
+
+def build_report(complaints, category, status):
+    filters = []
+    if category:
+        filters.append(f"category: {category}")
+    if status:
+        filters.append(f"status: {status}")
+    subtitle = ", ".join(filters) if filters else "all complaints"
+
+    pdf = FPDF()
+    pdf.add_page()
+
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Complaints Report", new_x="LMARGIN", new_y="NEXT")
+
+    pdf.set_font("Arial", size=10)
+    pdf.cell(0, 6, f"{len(complaints)} complaints ({subtitle})", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(6)
+
+    for c in complaints:
+        pdf.set_font("Arial", "B", 10)
+        pdf.multi_cell(0, 6, f"{c.hex_code}   {c.category}   {c.status}")
+        pdf.set_font("Arial", size=10)
+        pdf.multi_cell(0, 6, safe(c.description))
+        pdf.multi_cell(0, 6, safe(f"proof: {c.url or 'none'}"))
+        pdf.ln(4)
+
+    return bytes(pdf.output())
+
+
 def require_mod(x_mod_password: str = Header(...)):
     if not secrets.compare_digest(x_mod_password, MOD_PASSWORD):
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -76,7 +116,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://rdchampion.me"
-        # add the deployed frontend URL here, scheme + host only, no trailing slash
+
     ],
     allow_methods=["*"],
     allow_headers=["*"],
@@ -134,7 +174,12 @@ def get_data(category:str | None=None, status:str | None=None):
             query=query.filter(Complaint.status==status)
 
         results=query.all()
-        return results
+        pdf_bytes=build_report(results, category, status)
+
+        session.add(Report(pdf=pdf_bytes))
+        session.commit()
+        return Response(content=pdf_bytes, media_type="application/pdf",headers={"Content-Disposition": 'attachment; filename="complaints.pdf"'},)
+
 
 @app.patch("/mod/complaints/{complaint_id}",dependencies=[Depends(require_mod)],tags=["Moderator"])
 def update_status(complaint_id:str, status:StatusUp):
