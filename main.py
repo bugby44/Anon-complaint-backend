@@ -144,7 +144,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://rdchampion.me"
+        "https://rdchampion.me",
+        "http://127.0.0.1:5500"
 
     ],
     allow_methods=["*"],
